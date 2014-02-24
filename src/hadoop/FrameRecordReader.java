@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
 
-/**,efvclejn,SQCM,kdsv
+/**
  * Treats keys as offset in file and value as line. 
  */
 public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable> {
@@ -35,8 +35,6 @@ public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable>
   private double endDate;
   private double startDate;
 
-
-  
   
   
   public void initialize(InputSplit genericSplit,
