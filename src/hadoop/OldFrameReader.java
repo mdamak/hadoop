@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.examples.WordCount;
 import org.apache.hadoop.io.BytesWritable;
 
 /**

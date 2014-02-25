@@ -154,7 +154,7 @@ public class FrameReader implements Closeable {
   
 
 
-  protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
+  protected int fillBuffer(InputStream in, byte[] buffer)
       throws IOException {
     return in.read(buffer);
   }
@@ -162,23 +162,22 @@ public class FrameReader implements Closeable {
   /**
    * Read a line terminated by a custom delimiter.
    */
-  public int readFrame(BytesWritable frame, int maxFrameLength, int maxBytesToConsume,double startDate,double endDate )
+  public int readFrame(BytesWritable frame, int maxFrameLength, double startDate,double endDate )
       throws IOException {
 
     
-	    int txtLength = 0; //tracks str.getLength(), as an optimization
-	    int separatorLength = 0; //length of terminating newline
+	   // int txtLength = 0; //tracks str.getLength(), as an optimization
+	   // int separatorLength = 0; //length of terminating newline
 	    long bytesConsumed = 0;
 	    int delPosn = 0;
-	    int ambiguousByteCount=0; // To capture the ambiguous characters count
 
 	    List<Byte> tram= new ArrayList<Byte>();
-	 	
+	 		    
 	    do {
 	      int startPosn = bufferPosn; //starting from where we left off the last time
 	      if (bufferPosn >= bufferLength) {
 	        startPosn = bufferPosn = 0;   
-	        bufferLength = fillBuffer(in, buffer, ambiguousByteCount > 0);
+	        bufferLength = fillBuffer(in, buffer);
 	        if (bufferLength <= 0)
 	        	//on gere pas le fait d'avoir un fichier qui finit par zero
 	          break; // EOF
@@ -207,20 +206,20 @@ public class FrameReader implements Closeable {
    bytesConsumed += bufferPosn - startPosn;
 	      
 
-	    } while (delPosn < recordDelimiterBytes.length 
-	            && bytesConsumed < maxBytesToConsume);
+	    } while (delPosn < recordDelimiterBytes.length);
+	         
 	    
 	   // we have three cases depending on the Date of frame
        bf.clear();
-	   bf.put(OldFrameReader.transformerByte(tram.subList(0, 7)));
+	   bf.put(transformerByte(tram.subList(0, 8)));
 	   bf.flip();
 	   double frameDate=bf.getDouble();
 	   if (frameDate>endDate){ // we skip the file
 		   return 0;
 	   }else if (frameDate<startDate)// we skip the frame 
-		   return readFrame(frame, maxFrameLength, maxBytesToConsume, startDate, endDate);
+		   return readFrame(frame, maxFrameLength, startDate, endDate);
 	   else { // we read the frame
-		   frame.set(OldFrameReader.transformerByte(tram),0,tram.size());
+		   frame.set(transformerByte(tram),0,tram.size());
 	   }
 	        if (bytesConsumed > (long) Integer.MAX_VALUE) {
 	          throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
@@ -231,20 +230,18 @@ public class FrameReader implements Closeable {
   
  //////////Test//////////// 
  ////////////////////////// 
-  public int readTest(List<Byte> tram,int maxFrameLength, int maxBytesToConsume,double startDate,double endDate )
+  public int readTest(List<Byte> tram,int maxFrameLength, double startDate,double endDate )
 	      throws IOException {
-
-	    
+		    
 		    long bytesConsumed = 0;
-		    
-         
-		    
-		 	
+		    int delPosn = 0;
+		    		 	
 		    do {
 		      int startPosn = bufferPosn; //starting from where we left off the last time
 		      if (bufferPosn >= bufferLength) {
 		        startPosn = bufferPosn = 0;   
-		        bufferLength = fillBuffer(in, buffer, ambiguousByteCount > 0);
+		        bufferLength = fillBuffer(in, buffer);
+		       // System.out.println(bufferLength);
 		        if (bufferLength <= 0)
 		        	//on gere pas le fait d'avoir un fichier qui finit par zero
 		          break; // EOF
@@ -273,20 +270,20 @@ public class FrameReader implements Closeable {
 	   bytesConsumed += bufferPosn - startPosn;
 		      
 
-		    } while (delPosn < recordDelimiterBytes.length 
-		            && bytesConsumed < maxBytesToConsume);
+		    } while (delPosn < recordDelimiterBytes.length );
+		           
 		    
 		   // we have three cases depending on the Date of frame
 	       bf.clear();
-		   bf.put(OldFrameReader.transformerByte(tram.subList(0, 7)));
+		   bf.put(OldFrameReader.transformerByte(tram.subList(0, 8)));
 		   bf.flip();
 		   double frameDate=bf.getDouble();
 		   if (frameDate>endDate){ // we skip the file
 			   return 0;
 		   }else if (frameDate<startDate)// we skip the frame 
-			   return readTest(tram , maxFrameLength, maxBytesToConsume, startDate, endDate);
+			   return readTest(tram , maxFrameLength, startDate, endDate);
 		   else { // we read the frame
-     
+                  System.out.println("sortie normal");
 		   }
 		        if (bytesConsumed > (long) Integer.MAX_VALUE) {
 		          throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
@@ -295,28 +292,19 @@ public class FrameReader implements Closeable {
 	}  
   
   
+
+public static byte[] transformerByte(List<Byte> tab) {
+
+	byte[] res = new byte[tab.size()];
+
+	for (int i=0;i<tab.size();i++){
+		res[i]=tab.get(i).byteValue();
+	}
+
+	return res;
+
   
   
   
 
-  /**
-   * Read from the InputStream into the given Text.
-   * @param str the object to store the given line
-   * @param maxLineLength the maximum number of bytes to store into str.
-   * @return the number of bytes read including the newline
-   * @throws IOException if the underlying stream throws
-   */
-  public int readFrame(BytesWritable frame, int maxLineLength, double startDate, double endDate) throws IOException {
-    return readFrame(frame, maxLineLength, Integer.MAX_VALUE, startDate, endDate);
-  }
-
-  /**
-   * Read from the InputStream into the given Text.
-   * @param str the object to store the given line
-   * @return the number of bytes read including the newline
-   * @throws IOException if the underlying stream throws
-   */
-  public int readFrame(BytesWritable frame, double startDate, double endDate) throws IOException {
-    return readFrame(frame, Integer.MAX_VALUE, Integer.MAX_VALUE, startDate, endDate);
-  }
 }

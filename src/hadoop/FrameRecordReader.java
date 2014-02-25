@@ -15,8 +15,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.Log;
 
 /**
  * Treats keys as offset in file and value as line. 
@@ -25,7 +23,6 @@ import org.apache.commons.logging.Log;
 @InterfaceStability.Evolving
 public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable> {
  
-  private static final Log LOG = LogFactory.getLog(FrameRecordReader.class);
   public static final String MAX_LINE_LENGTH = 
 		    "mapreduce.input.linerecordreader.line.maxlength";
   
@@ -82,7 +79,7 @@ public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable>
   	 start++; 
     }
     else{
-    start += in.readFrame(new BytesWritable(), startDate, endDate);
+    start += in.readFrame(new BytesWritable(),maxLineLength, startDate, endDate);
     }
    }
   this.pos = start;
@@ -106,16 +103,14 @@ public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable>
 
   
   public boolean nextKeyValue() throws IOException {
-   
 	
     if (value == null) {
       value = new BytesWritable();
     }
     int newSize = 0;
 	while (pos <= end ) {
-      newSize = in.readFrame(value, maxLineLength,
-                            Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
-                                     maxLineLength),startDate,endDate);
+      newSize = in.readFrame(value, maxLineLength,startDate,endDate);
+                            
       
       if (newSize == 0) {
         break;
@@ -125,9 +120,7 @@ public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable>
         break;
       }
 
-      // line too long. try again
-      LOG.info("Skipped line of size " + newSize + " at pos " + 
-               (pos - newSize));
+   
     }
     if (newSize == 0) {
       key = null;
