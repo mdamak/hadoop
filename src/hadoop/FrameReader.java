@@ -302,7 +302,7 @@ public static byte[] transformerByte(List<Byte> tab) {
 	}
 
 	return res;
-
+}
   
   
   
