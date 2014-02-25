@@ -292,7 +292,7 @@ public class FrameReader implements Closeable {
    * @return the number of bytes read including the newline
    * @throws IOException if the underlying stream throws
    */
-  public int readLine(BytesWritable frame, double startDate, double endDate) throws IOException {
+  public int readFrame(BytesWritable frame, double startDate, double endDate) throws IOException {
     return readFrame(frame, Integer.MAX_VALUE, Integer.MAX_VALUE, startDate, endDate);
   }
 }
