@@ -1,9 +1,14 @@
 package hadoop;
 
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.List;
+
+import org.apache.hadoop.io.BytesWritable;
 
 public class testHadoop {
 
@@ -16,7 +21,11 @@ public class testHadoop {
 		FileOutputStream fos = new FileOutputStream("/Users/Hamza/Desktop/trameTest.bin");
 		fos.write(trame);
 		fos.close();
-       
+		InputStream in = new FileInputStream("/Users/Hamza/Desktop/trameTest.bin");
+		FrameReader fr = new FrameReader(in); 
+		
+
+		readTest(List<Byte> tram,int maxFrameLength, int maxBytesToConsume,double startDate,double endDate );
 		
 		
 						
