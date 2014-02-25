@@ -2,14 +2,15 @@ package hadoop;
 
 import java.io.IOException;
 
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -20,22 +21,34 @@ import org.apache.commons.logging.Log;
 /**
  * Treats keys as offset in file and value as line. 
  */
+@InterfaceAudience.LimitedPrivate({"MapReduce", "Pig"})
+@InterfaceStability.Evolving
 public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable> {
  
   private static final Log LOG = LogFactory.getLog(FrameRecordReader.class);
+  public static final String MAX_LINE_LENGTH = 
+		    "mapreduce.input.linerecordreader.line.maxlength";
+  
 
-  private CompressionCodecFactory compressionCodecs = null;
   private long start;
   private long pos;
   private long end;
   private FrameReader in;
+  private FSDataInputStream fileIn;
+  private Seekable filePosition;
   private int maxLineLength;
   private NullWritable key = null;
   private BytesWritable value = null;
   private double endDate;
   private double startDate;
+  private byte[] recordDelimiterBytes={0,0};
 
-  
+  public FrameRecordReader() {
+  }
+
+  public FrameRecordReader(byte[] recordDelimiter) {
+	    this.recordDelimiterBytes = recordDelimiter;
+	  }
   
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -50,46 +63,56 @@ public class FrameRecordReader extends RecordReader<NullWritable, BytesWritable>
     start = split.getStart();
     end = start + split.getLength();
     final Path file = split.getPath();
-    compressionCodecs = new CompressionCodecFactory(job);
-    final CompressionCodec codec = compressionCodecs.getCodec(file);
-
+    
     // open the file and seek to the start of the split
-    FileSystem fs = file.getFileSystem(job);
-    FSDataInputStream fileIn = fs.open(split.getPath());
-    boolean skipFirstLine = false;
-    if (codec != null) {
-      in = new FrameReader(codec.createInputStream(fileIn), job);
-      end = Long.MAX_VALUE;
-    } else {
-      if (start != 0) {
-        skipFirstLine = true;
-        --start;
-        fileIn.seek(start);
-      }
-      in = new FrameReader(fileIn, job);
+    final FileSystem fs = file.getFileSystem(job);
+    fileIn = fs.open(file);
+
+    fileIn.seek(start);
+    in = new FrameReader(fileIn, job, recordDelimiterBytes);
+    filePosition = fileIn;
+  
+  // If this is not the first split, we always throw away first record
+  // because we always (except the last split) read one extra line in
+  // next() method.
+  //si ce n'est pas le premier split on positionne le buffer correctement 
+  //deux cas : soit le split commence avec un zero (delimiteur possible) soit non  
+  if (start != 0) {
+    if (finDelimiteur()){
+  	 start++; 
     }
-    if (skipFirstLine) {  // skip first line and re-establish "start".
-      start += in.readFrame(new BytesWritable(), 0,
-                           (int)Math.min((long)Integer.MAX_VALUE, end - start), startDate,endDate);
+    else{
+    start += in.readFrame(new BytesWritable(), startDate, endDate);
     }
-    this.pos = start;
+   }
+  this.pos = start;
   }
+  
+  
+
+  //methode qui sert a savoir si le split commence avec la fin d'un delimiteur
+  public boolean finDelimiteur() throws IOException{
+    boolean res = false;
+     fileIn.mark(10);
+     byte[] buff = new byte[2];
+     long pos = (long) (fileIn.getPos()-1);
+     fileIn.read(pos, buff, 0, 2);
+     if (buff[0]==0 && buff[1]==0){
+    	 res=true;
+     }
+	 fileIn.reset();
+	return res;  
+  }
+
   
   public boolean nextKeyValue() throws IOException {
    
-	  
-	//TODO we use NullWritable
-//	  if (key == null) {
-//		  key = new LongWritable(); 
-//    }
-//    
-//  key.set(pos);
+	
     if (value == null) {
       value = new BytesWritable();
     }
     int newSize = 0;
-    boolean stop= false;
-	while (pos < end && !stop ) {
+	while (pos <= end ) {
       newSize = in.readFrame(value, maxLineLength,
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength),startDate,endDate);
