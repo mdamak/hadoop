@@ -9,12 +9,13 @@ import org.apache.hadoop.io.Writable;
 public class CoupleWritable implements Writable{
 
 	private double frameDate;
-	private double paramVal;// it can also be String or List
-	
+	private String paramVal;// double and list of doubles will be represented as String
+	private int paramSize;  
 	public CoupleWritable(){
 	}
 	
-	public CoupleWritable(double frameDate,double paramVal){
+	public CoupleWritable(double frameDate,String paramVal){
+		paramSize= paramVal.length();
 		this.setFrameDate(frameDate);
 		this.setParamVal(paramVal);
 	}
@@ -22,13 +23,14 @@ public class CoupleWritable implements Writable{
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeDouble(frameDate);
-		out.writeDouble(paramVal);
+		out.writeChars(paramVal);
 	}
 
 	@Override
 	public void readFields(DataInput in) throws IOException {
 		frameDate= in.readDouble();
-		paramVal= in.readDouble();
+		for (int i=0; i<paramSize; i++)
+			paramVal+= in.readChar();
 	}
 
 	public double getFrameDate() {
@@ -39,12 +41,20 @@ public class CoupleWritable implements Writable{
 		this.frameDate = frameDate;
 	}
 
-	public double getParamVal() {
+	public String getParamVal() {
 		return paramVal;
 	}
 
-	public void setParamVal(double paramVal) {
+	public void setParamVal(String paramVal) {
 		this.paramVal = paramVal;
+	}
+
+	public int getParamSize() {
+		return paramSize;
+	}
+
+	public void setParamSize(int paramSize) {
+		this.paramSize = paramSize;
 	}
 
 }
