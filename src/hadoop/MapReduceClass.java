@@ -1,12 +1,17 @@
 package hadoop;
 
 
+
+
 import java.io.IOException;
-import java.util.StringTokenizer;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -17,20 +22,95 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 public class MapReduceClass {
 
-  public static class TokenizerMapper 
-       extends Mapper<Object, Text, Text, IntWritable>{
+	//TODO initialize  paramList and filePath
+	public static List<Integer> paramList;
+	public static String filePath;
+	
+  public static class ExtracterMapper 
+       extends Mapper<NullWritable, BytesWritable, IntWritable,CoupleWritable>{
     
-    private final static IntWritable one = new IntWritable(1);
-    private Text word = new Text();
+    private double frameDate;
+    
       
-    public void map(Object key, Text value, Context context
+    public void map(NullWritable key, BytesWritable value, Context context
                     ) throws IOException, InterruptedException {
-      StringTokenizer itr = new StringTokenizer(value.toString());
-      while (itr.hasMoreTokens()) {
-        word.set(itr.nextToken());
-        context.write(word, one);
-      }
+     ByteBuffer buffer= ByteBuffer.allocate(value.getLength());
+     buffer.put(value.getBytes());
+     buffer.flip();
+     frameDate= buffer.getDouble();
+     buffer.getInt();//size of the list of parameters
+     int type = buffer.getInt();
+	 int nbParam = buffer.getInt();
+
+	   switch(type){
+
+	   case 1 :  lireParamsVal(buffer, nbParam, context) ; break;
+
+	   case 2 :  lireParamsVal(buffer, nbParam, context) ; break;
+
+	   case 3 :  lireParamsStat(buffer, nbParam, context) ; break;
+
+	   case 4 :  lireParamsMessage(buffer, nbParam, context) ; break;
+
+	   }
     }
+	   
+
+
+	public  void lireParamsVal(ByteBuffer buffer,int nbParams, Context context) throws IOException, InterruptedException {
+		    for (int i=0;i<nbParams;i++){
+			  int id = buffer.getInt();
+			  if (paramList.contains(id)){
+				 double val = buffer.getDouble();
+				 System.out.println(id+": "+val);
+				 CoupleWritable value= new CoupleWritable(frameDate, val);
+				 context.write(new IntWritable(id), value);
+			  }
+		    }
+		}
+	
+	
+	private void lireParamsMessage(ByteBuffer buffer, int nbParam,
+			Context context) {
+		 for (int i=0;i<nbParam;i++){
+	    	 int id = buffer.getInt();
+	    	 int taille= buffer.getInt();
+	   	  if (paramList.contains(id)){
+	   		String msg="";
+	   		for(int j=0;j<taille; j++)
+	   			msg=msg+buffer.getChar();
+	   		
+	   		//TODO write the value to the context
+	   		 System.out.println(id + ": " + msg);
+	   	  }
+		 }
+		 
+
+			
+		}
+
+		private void lireParamsStat(ByteBuffer buffer, int nbParam,
+				Context context) {
+		    for (int i=0;i<nbParam;i++){
+			  int id =buffer.getInt();
+			  if (paramList.contains(id)){
+				 Double tfin = buffer.getDouble();
+				 Double tmin = buffer.getDouble();
+				 Double tmax = buffer.getDouble();
+				 Double vmin = buffer.getDouble();
+				 Double vmax = buffer.getDouble();
+				 Double vmoy = buffer.getDouble();
+				 Double sigma = buffer.getDouble();   
+				 System.out.println(id+": "+tfin+" "+tmin+" "+tmax+" "+vmin+" "+vmax+" "+vmoy+" "+sigma);
+				 //TODO write to the context
+			  }
+		     
+
+		    }
+			
+		}
+
+
   }
   
   public static class IntSumReducer 
@@ -52,26 +132,25 @@ public class MapReduceClass {
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
     
-    // TODO read the dates throw exception if agrs not found 
+    String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+    if (otherArgs.length < 5) {
+      System.err.println("Usage: wordcount <in> <out> <beginDate> <endDate> <paramsList>");
+      System.exit(2);
+    }
+    
     double endDate =Double.parseDouble(args[2]);
     conf.setDouble("isa.endDate", endDate);
     double beginDate =Double.parseDouble(args[3]);
     conf.setDouble("isa.beginDate", beginDate);
-    
-    String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-    if (otherArgs.length != 5) {
-      System.err.println("Usage: wordcount <in> <out> <beginDate> <endDate> <paramsList>");
-      System.exit(2);
-    }
    
     
     Job job = new Job(conf,"isa");
     job.setJarByClass(MapReduceClass.class);
-    job.setMapperClass(TokenizerMapper.class);
+    job.setMapperClass(ExtracterMapper.class);
     job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(IntWritable.class);
+    job.setOutputKeyClass(IntWritable.class);
+    job.setOutputValueClass(BytesWritable.class);
     job.setInputFormatClass(FramesInputFormat.class);
     FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
     FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
