@@ -6,8 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.hadoop.io.BytesWritable;
 
@@ -46,16 +44,22 @@ public class testHadoop {
 		FrameReader fr = new FrameReader(in,4); 
 		
 
-		///test de readFrame
-		List<Byte> tram = new ArrayList();
+
+		////test de readFrame
+		///il faut utiliser copy bytes pour recuperer la value de BytesWritable
+		BytesWritable bw =new BytesWritable();
 		for (int i=0;i<2;i++){
-		int res = fr.readTest(tram,0, 0,10000000);
-		System.out.println("consumed bytes:"+res);
-		System.out.println(tram.toString());
-		tram.clear();
+		  int res = fr.readFrame(bw,0, 0,10000000);
+		  System.out.println("consumed bytes:"+res);
+		  byte[] test = bw.copyBytes();
+		  for (int j =0;j<test.length;j++){
+			 System.out.print(test[j]);
+		  }
+		  System.out.println(" ");
 		}		
        in.close();		
-					
+       fr.close();	
+
 	}
 
 }

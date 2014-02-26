@@ -228,68 +228,7 @@ public class FrameReader implements Closeable {
 }
 
   
- //////////Test//////////// 
- ////////////////////////// 
-  public int readTest(List<Byte> tram,int maxFrameLength, double startDate,double endDate )
-	      throws IOException {
-		    
-		    long bytesConsumed = 0;
-		    int delPosn = 0;
-		    		 	
-		    do {
-		      int startPosn = bufferPosn; //starting from where we left off the last time
-		      if (bufferPosn >= bufferLength) {
-		        startPosn = bufferPosn = 0;   
-		        bufferLength = fillBuffer(in, buffer);
-		       // System.out.println(bufferLength);
-		        if (bufferLength <= 0)
-		        	//on gere pas le fait d'avoir un fichier qui finit par zero
-		          break; // EOF
-		      }
-		      for (; bufferPosn < bufferLength; ++bufferPosn) {
-		          if (buffer[bufferPosn] == recordDelimiterBytes[delPosn]) {
-		            delPosn++;
-		            if (delPosn >= recordDelimiterBytes.length) {
-		              bufferPosn++;
-		              break;
-		            }
-		          } else if (delPosn != 0) {//it means the last byte is zero
-		        	  //decode 
-					byte nbZeros=buffer[bufferPosn];
-					for (int k=0; k<nbZeros;k++)
-						tram.add((byte) 0);
-					
-		            delPosn = 0;
-		          }else{ //case that we have delPos=0
-		        	  //ecrire le byte
-		        	  tram.add(buffer[bufferPosn] );
-		          }
-		        	  
-		        }	   
-		      
-	   bytesConsumed += bufferPosn - startPosn;
-		      
 
-		    } while (delPosn < recordDelimiterBytes.length );
-		           
-		    
-		   // we have three cases depending on the Date of frame
-	       bf.clear();
-		   bf.put(OldFrameReader.transformerByte(tram.subList(0, 8)));
-		   bf.flip();
-		   double frameDate=bf.getDouble();
-		   if (frameDate>endDate){ // we skip the file
-			   return 0;
-		   }else if (frameDate<startDate)// we skip the frame 
-			   return readTest(tram , maxFrameLength, startDate, endDate);
-		   else { // we read the frame
-                  System.out.println("sortie normal");
-		   }
-		        if (bytesConsumed > (long) Integer.MAX_VALUE) {
-		          throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
-		        }
-		        return (int) bytesConsumed; 
-	}  
   
   
 
