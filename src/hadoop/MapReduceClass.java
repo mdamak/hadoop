@@ -1,8 +1,5 @@
 package hadoop;
 
-
-
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -22,9 +19,7 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 public class MapReduceClass {
 
-	//TODO initialize  paramList and filePath
 	public static List<Integer> paramList;
-	public static String filePath;
 	
   public static class ExtracterMapper 
        extends Mapper<NullWritable, BytesWritable, IntWritable,CoupleWritable>{
@@ -41,29 +36,21 @@ public class MapReduceClass {
      buffer.getInt();//size of the list of parameters
      int type = buffer.getInt();
 	 int nbParam = buffer.getInt();
-
 	   switch(type){
-
 	   case 1 :  lireParamsVal(buffer, nbParam, context) ; break;
-
 	   case 2 :  lireParamsVal(buffer, nbParam, context) ; break;
-
 	   case 3 :  lireParamsStat(buffer, nbParam, context) ; break;
-
 	   case 4 :  lireParamsMessage(buffer, nbParam, context) ; break;
 
 	   }
     }
-	   
-
-
 	public  void lireParamsVal(ByteBuffer buffer,int nbParams, Context context) throws IOException, InterruptedException {
 		    for (int i=0;i<nbParams;i++){
 			  int id = buffer.getInt();
 			  if (paramList.contains(id)){
-				 double val = buffer.getDouble();
+				 Double val = buffer.getDouble();
 				 System.out.println(id+": "+val);
-				 CoupleWritable value= new CoupleWritable(frameDate, val);
+				 CoupleWritable value= new CoupleWritable(frameDate, val.toString());
 				 context.write(new IntWritable(id), value);
 			  }
 		    }
@@ -71,7 +58,8 @@ public class MapReduceClass {
 	
 	
 	private void lireParamsMessage(ByteBuffer buffer, int nbParam,
-			Context context) {
+			Context context) throws IOException, InterruptedException {
+		
 		 for (int i=0;i<nbParam;i++){
 	    	 int id = buffer.getInt();
 	    	 int taille= buffer.getInt();
@@ -80,17 +68,15 @@ public class MapReduceClass {
 	   		for(int j=0;j<taille; j++)
 	   			msg=msg+buffer.getChar();
 	   		
-	   		//TODO write the value to the context
-	   		 System.out.println(id + ": " + msg);
+	   		CoupleWritable value= new CoupleWritable(frameDate, msg);
+			context.write(new IntWritable(id), value);
+ 
+			System.out.println(id + ": " + msg);
 	   	  }
 		 }
-		 
-
-			
 		}
-
 		private void lireParamsStat(ByteBuffer buffer, int nbParam,
-				Context context) {
+				Context context) throws IOException, InterruptedException {
 		    for (int i=0;i<nbParam;i++){
 			  int id =buffer.getInt();
 			  if (paramList.contains(id)){
@@ -102,30 +88,21 @@ public class MapReduceClass {
 				 Double vmoy = buffer.getDouble();
 				 Double sigma = buffer.getDouble();   
 				 System.out.println(id+": "+tfin+" "+tmin+" "+tmax+" "+vmin+" "+vmax+" "+vmoy+" "+sigma);
-				 //TODO write to the context
+				String val="vmin: "+vmin +" vmax: "+vmax+" vmoy: "+vmoy;
+			   	CoupleWritable value= new CoupleWritable(frameDate, val);
+				context.write(new IntWritable(id), value);
 			  }
-		     
-
 		    }
-			
 		}
-
-
   }
   
-  public static class IntSumReducer 
-       extends Reducer<Text,IntWritable,Text,IntWritable> {
-    private IntWritable result = new IntWritable();
-
-    public void reduce(Text key, Iterable<IntWritable> values, 
+  public static class CollectIdReducer 
+       extends Reducer<IntWritable,CoupleWritable,IntWritable, Iterable<CoupleWritable>> {
+    public void reduce(IntWritable key, Iterable<CoupleWritable> values, 
                        Context context
                        ) throws IOException, InterruptedException {
-      int sum = 0;
-      for (IntWritable val : values) {
-        sum += val.get();
-      }
-      result.set(sum);
-      context.write(key, result);
+
+      context.write(key, values);
     }
   }
 
@@ -138,17 +115,18 @@ public class MapReduceClass {
       System.exit(2);
     }
     
-    double endDate =Double.parseDouble(args[2]);
+    double endDate =Double.parseDouble(otherArgs[2]);
     conf.setDouble("isa.endDate", endDate);
-    double beginDate =Double.parseDouble(args[3]);
+    double beginDate =Double.parseDouble(otherArgs[3]);
     conf.setDouble("isa.beginDate", beginDate);
-   
+    
+    for (int i=0; i<otherArgs.length; i++)
+    	paramList.add(Integer.parseInt(otherArgs[i]));
     
     Job job = new Job(conf,"isa");
     job.setJarByClass(MapReduceClass.class);
     job.setMapperClass(ExtracterMapper.class);
-    job.setCombinerClass(IntSumReducer.class);
-    job.setReducerClass(IntSumReducer.class);
+    job.setReducerClass(CollectIdReducer.class);
     job.setOutputKeyClass(IntWritable.class);
     job.setOutputValueClass(BytesWritable.class);
     job.setInputFormatClass(FramesInputFormat.class);
