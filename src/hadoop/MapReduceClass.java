@@ -29,8 +29,9 @@ public class MapReduceClass {
       
     public void map(NullWritable key, BytesWritable value, Context context
                     ) throws IOException, InterruptedException {
-     ByteBuffer buffer= ByteBuffer.allocate(value.getLength());
-     buffer.put(value.getBytes());
+     byte[] tab = value.copyBytes(); 
+     ByteBuffer buffer= ByteBuffer.allocate(tab.length);
+     buffer.put(tab);	
      buffer.flip();
      frameDate= buffer.getDouble();
      buffer.getInt();//size of the list of parameters
@@ -106,6 +107,7 @@ public class MapReduceClass {
     }
   }
 
+  
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
     

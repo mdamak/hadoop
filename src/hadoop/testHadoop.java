@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.apache.hadoop.io.BytesWritable;
 
@@ -43,20 +44,27 @@ public class testHadoop {
 		InputStream in = new FileInputStream("/Users/Hamza/Desktop/trameTest.bin");
 		FrameReader fr = new FrameReader(in,4); 
 		
+	/**	Random rg = new Random(3);
+ 
+		for (int i=0;i<4;i++){
+			System.out.println(rg.nextDouble());
+		} */	
 
 
 		////test de readFrame
-		///il faut utiliser copy bytes pour recuperer la value de BytesWritable
+		///il faut utiliser copybytes pour recuperer la value de BytesWritable
 		BytesWritable bw =new BytesWritable();
 		for (int i=0;i<2;i++){
 		  int res = fr.readFrame(bw,0, 0,10000000);
 		  System.out.println("consumed bytes:"+res);
+		  System.out.println("taille de value:"+bw.getLength());
 		  byte[] test = bw.copyBytes();
 		  for (int j =0;j<test.length;j++){
 			 System.out.print(test[j]);
 		  }
 		  System.out.println(" ");
 		}		
+		
        in.close();		
        fr.close();	
 
